@@ -1,18 +1,25 @@
 package processors;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.spark.sql.*;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.functions;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.Properties;
 
+import static utils.constants.APP_NAME;
+import static utils.constants.PASSWORD;
+
 /**
- * <b>Extraction<b/>
+ * <b>ETLjob<b/>
  * <p>Takes data from different sources and consolidats in to 1 target system(DB)</p>
  */
 @Slf4j
-public class Extraction implements Serializable {
-    private final static String PROCESSOR_NAME = "Extraction";
+public class ETLjob implements Serializable {
+    private final static String PROCESSOR_NAME = "ETLjob";
 
 
     public static void main(String[] args) {
@@ -20,10 +27,10 @@ public class Extraction implements Serializable {
         log.info("-------- STARTING PROCESSOR:" + PROCESSOR_NAME + "-------------------");
         try {
             ApplicationContext context =
-                    new AnnotationConfigApplicationContext(Extraction.class);
-            Extraction Extraction = context.getBean(Extraction.class);
-            Properties defaultProperties = Extraction.getDefaultProperties();
-            Extraction.invokeDependencies(defaultProperties);
+                    new AnnotationConfigApplicationContext(ETLjob.class);
+            ETLjob ETLjob = context.getBean(ETLjob.class);
+            Properties defaultProperties = ETLjob.getDefaultProperties();
+            ETLjob.invokeDependencies(defaultProperties);
 
         } catch (Exception e) {
             log.error("Error in processor: " + PROCESSOR_NAME + ": ", e);
@@ -45,7 +52,7 @@ public class Extraction implements Serializable {
             log.info("initializing spark");
 
             spark = SparkSession.builder()
-                    .appName("Honeywell Data Extractor")
+                    .appName(APP_NAME)
                     .config("spark.master", "local")
                     .getOrCreate();
             com.albertsons.catalog.mc.utils.H2DBGenerator.executeSqlScript(spark);
@@ -56,16 +63,16 @@ public class Extraction implements Serializable {
                     .format("jdbc")
                     .option("url", "jdbc:h2:./data/")
                     .option("user", "user")
-                    .option("password", "KNEF^&#JNFkdf")
+                    .option("password", PASSWORD)
                     .load();
 
             Dataset<Row> csvData = spark.read().format("csv")
                     .option("header", true)
                     .option("inferSchema", true)
-                    .load("path_to_customerCsv.csv");
+                    .load("./resources/customerCsv.csv");
 
             Dataset<Row> jsonData = spark.read().format("json")
-                    .load("path_to_customerJson.json");
+                    .load("./resources/customerJson.json");
 //combining data
             Dataset<Row> consolidatedData = csvData.union(jsonData).dropDuplicates();
 
@@ -91,7 +98,7 @@ public class Extraction implements Serializable {
 
     private Properties getDefaultProperties() {
         Properties properties = new Properties();
-        properties.setProperty("", "");
+        properties.setProperty("time", Date.from(new Date().toInstant()).toString());
         return properties;
     }
 
